@@ -52,14 +52,14 @@ export const ModalFinalizarVenda: React.FC<ModalFinalizarVendaProps> = ({
   ] as const;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-lg overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-center justify-between bg-slate-900 px-6 py-4 text-white">
-          <h2 className="text-xl font-bold tracking-tight">Finalizar Venda</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg overflow-hidden rounded-xl border border-ink-700 bg-ink-900 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-ink-800 bg-ink-950 px-6 py-4">
+          <h2 className="text-xl font-bold tracking-tight text-ink-100">Finalizar Venda</h2>
           <button
             type="button"
             onClick={onFechar}
-            className="text-slate-400 transition hover:text-white"
+            className="text-ink-400 transition hover:text-accent"
           >
             <X size={20} />
           </button>
@@ -67,7 +67,7 @@ export const ModalFinalizarVenda: React.FC<ModalFinalizarVendaProps> = ({
 
         <form onSubmit={handleSubmit} className="space-y-5 p-6">
           <div>
-            <label className="mb-2 block text-xs font-semibold uppercase text-slate-500">
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-ink-300">
               Forma de Pagamento
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -81,8 +81,8 @@ export const ModalFinalizarVenda: React.FC<ModalFinalizarVendaProps> = ({
                     onClick={() => setForma(opt.id)}
                     className={`flex items-center justify-center gap-2 rounded-lg border p-3 text-sm font-semibold transition-all ${
                       selecionado
-                        ? 'border-emerald-600 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500/20'
-                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        ? 'border-accent bg-accent/10 text-accent ring-2 ring-accent/20'
+                        : 'border-ink-700 bg-ink-800 text-ink-200 hover:border-ink-600 hover:bg-ink-700'
                     }`}
                   >
                     <Icon size={16} />
@@ -95,7 +95,7 @@ export const ModalFinalizarVenda: React.FC<ModalFinalizarVendaProps> = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-600">
+              <label className="mb-1 block text-xs font-semibold text-ink-300">
                 Desconto (R$)
               </label>
               <input
@@ -104,23 +104,23 @@ export const ModalFinalizarVenda: React.FC<ModalFinalizarVendaProps> = ({
                 min="0"
                 value={desconto || ''}
                 onChange={(e) => setDesconto(parseFloat(e.target.value) || 0)}
-                className="w-full rounded-lg border border-slate-300 p-2.5 text-right font-medium focus:border-slate-800 focus:outline-none"
+                className="w-full rounded-lg border border-ink-700 bg-ink-950 p-2.5 text-right font-medium text-ink-100 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-600">
+              <label className="mb-1 block text-xs font-semibold text-ink-300">
                 Total Líquido
               </label>
-              <div className="rounded-lg bg-slate-100 p-2.5 text-right text-lg font-bold text-slate-900">
+              <div className="rounded-lg border border-ink-700 bg-ink-950 p-2.5 text-right text-lg font-bold text-accent">
                 R$ {totalComDesconto.toFixed(2)}
               </div>
             </div>
           </div>
 
           {forma === 'DINHEIRO' && (
-            <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="space-y-3 rounded-lg border border-ink-700 bg-ink-950 p-4">
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">
+                <label className="mb-1 block text-xs font-semibold text-ink-300">
                   Valor Recebido (R$)
                 </label>
                 <input
@@ -130,12 +130,12 @@ export const ModalFinalizarVenda: React.FC<ModalFinalizarVendaProps> = ({
                   min="0"
                   value={valorRecebido || ''}
                   onChange={(e) => setValorRecebido(parseFloat(e.target.value) || 0)}
-                  className="w-full rounded-lg border border-slate-300 p-2 text-right text-xl font-bold text-slate-800 focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-ink-700 bg-ink-900 p-2 text-right text-xl font-bold text-ink-100 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                 />
               </div>
-              <div className="flex items-center justify-between border-t border-slate-200 pt-2">
-                <span className="text-sm font-semibold text-slate-600">Troco:</span>
-                <span className="text-2xl font-black text-emerald-600">
+              <div className="flex items-center justify-between border-t border-ink-800 pt-2">
+                <span className="text-sm font-semibold text-ink-300">Troco:</span>
+                <span className="text-2xl font-black text-accent">
                   R$ {troco.toFixed(2)}
                 </span>
               </div>
@@ -146,13 +146,13 @@ export const ModalFinalizarVenda: React.FC<ModalFinalizarVendaProps> = ({
             <button
               type="button"
               onClick={onFechar}
-              className="w-1/3 rounded-lg border border-slate-300 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+              className="w-1/3 rounded-lg border border-ink-700 py-3 text-sm font-semibold text-ink-200 transition hover:bg-ink-800"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="flex w-2/3 items-center justify-center gap-2 rounded-lg bg-emerald-600 py-3 text-sm font-bold text-white shadow-md transition hover:bg-emerald-700"
+              className="flex w-2/3 items-center justify-center gap-2 rounded-lg bg-accent py-3 text-sm font-bold text-ink-950 shadow-md transition hover:bg-accent-light"
             >
               <CheckCircle2 size={18} />
               Confirmar Venda

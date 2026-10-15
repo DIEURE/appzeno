@@ -1,11 +1,30 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-html, body, #root {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  background-color: #f8fafc;
+@theme {
+  /* ─── PALETA INK (Tons de Cinza Organizados por Escala de Contraste) ─── */
+--color-brand-dark: #7a5c00; /* Amarelo-avermelhado escuro / Ocre industrial */
+
+  --color-ink-50: #ffffff;       /* Fundo puro / Texto no modo escuro */
+  --color-ink-100: #f4f4f5;      /* Fundo de inputs / Cards claros */
+  --color-ink-200: #e4e4e7;      /* Bordas / Divisores claros (substituiu o amarelo daqui) */
+  --color-ink-300: #d4d4d8;      /* Textos secundários claros / Desabilitados */
+  --color-ink-400: #a1a1aa;      /* Placeholders de inputs */
+  --color-ink-500: #71717a;      /* Textos secundários em fundo claro */
+  --color-ink-600: #52525b;      /* Textos principais em fundo claro */
+  --color-ink-700: #3f3f46;      /* Elementos grafite escuro */
+  --color-ink-800: #27272a;      /* Fundo de gôndolas digitais / Modo escuro */
+  --color-ink-900: #18181b;      /* Preto industrial (substituiu o cinza médio daqui) */
+  --color-ink-950: #103d5c;      /* Preto profundo / Texto principal no modo claro */
+
+  /* ─── CORES DE DESTAQUE E MARCA (PDV FERRAGISTA) ─── */
+  --color-accent: #eae208;       /* Amarelo Trator / Amarelo Segurança principal */
+  --color-accent-light: #fef8bee; /* Um amarelo bem clarinho para fundos de alerta/aviso */
+  --color-accent-dark: #b8b100;  /* Amarelo escuro para hover de botões ou textos legíveis */
+
+  /* ─── CORES DE STATUS (Avisos do Sistema do PDV) ─── */
+  --color-success: #08ea4c;     /* Verde para "Venda Concluída" / "Estoque Disponível" */
+  --color-danger: #ea0808;      /* Vermelho para "Erro" / "Produto Falta no Estoque" */
+
+  /* ─── TIPOGRAFIA ─── */
+  --font-sans: Inter, system-ui, sans-serif;
 }
