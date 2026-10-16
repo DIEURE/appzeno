@@ -11,26 +11,43 @@ import {
   List,
 } from "lucide-react";
 
-import type { ItemCarrinho, Produto, FormaPagamento } from "../types/pdv";
+import type {
+  ItemCarrinho,
+  Produto,
+  FormaPagamento,
+  PedidoResponseDTO,
+} from "../types/pdv";
 
 import { catalogoService } from "../services/catalogoService";
 import { vendasService } from "../services/vendasService";
 import { ModalFinalizarVenda } from "../components/ModalFinalizarVenda";
 import { ModalBuscarProduto } from "../components/produto/ModalBuscarProduto";
+import { ModalOrcamentosAbertos } from "../components/pedido/ModalOrcamentosAbertos";
 
 export const PDVScreen: React.FC = () => {
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
   const [busca, setBusca] = useState<string>("");
   const [quantidade, setQuantidade] = useState<string>("1");
-  const [mensagemStatus, setMensagemStatus] =   useState<string>("Pronto para venda");
+  const [mensagemStatus, setMensagemStatus] = useState<string>("Pronto para venda");
   const [ultimoItem, setUltimoItem] = useState<Produto | null>(null);
   const [modalAberto, setModalAberto] = useState<boolean>(false);
   const [modalProdutoAberto, setModalProdutoAberto] = useState<boolean>(false);
+  const [modalOrcamentosAberto, setModalOrcamentosAberto] = useState<boolean>(false);
   const [produtosLista, setProdutosLista] = useState<Produto[]>([]);
   const [carregandoProdutos, setCarregandoProdutos] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
+  const [pedidoOrigemId, setPedidoOrigemId] = useState<number | null>(null);
+  const [pedidoOrigemNumero, setPedidoOrigemNumero] = useState<string | null>(null);
+  const [jaCarregouProdutos, setJaCarregouProdutos] = useState<boolean>(false);
 
   const inputBuscaRef = useRef<HTMLInputElement>(null);
+
+  const modoOrcamento = pedidoOrigemId !== null;
+
+  const invalidarCacheProdutos = () => {
+    setJaCarregouProdutos(false);
+    setProdutosLista([]);
+  };
 
   useEffect(() => {
     inputBuscaRef.current?.focus();
@@ -38,26 +55,39 @@ export const PDVScreen: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (modalAberto || modalProdutoAberto) return;
+      if (modalAberto || modalProdutoAberto || modalOrcamentosAberto) return;
 
       if (e.key === "F4") {
         e.preventDefault();
         if (carrinho.length > 0) setModalAberto(true);
       } else if (e.key === "F2") {
         e.preventDefault();
+        if (modoOrcamento) {
+          setMensagemStatus(
+            "Orçamento carregado — finalize com F4 ou limpe com F8 para criar um novo",
+          );
+          return;
+        }
         salvarComoOrcamento();
       } else if (e.key === "F8") {
         e.preventDefault();
         limparVenda();
       } else if (e.key === "F3") {
         e.preventDefault();
+        if (modoOrcamento) {
+          setMensagemStatus("Bloqueado: orçamento carregado");
+          return;
+        }
         abrirModalProdutos();
+      } else if (e.key === "F5") {
+        e.preventDefault();
+        abrirModalOrcamentos();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [carrinho, modalAberto, modalProdutoAberto]);
+  }, [carrinho, modalAberto, modalProdutoAberto, modalOrcamentosAberto, modoOrcamento]);
 
   const totalGeral = carrinho.reduce((acc, item) => acc + item.subtotal, 0);
 
@@ -65,8 +95,6 @@ export const PDVScreen: React.FC = () => {
     const n = parseFloat(valor.replace(",", "."));
     return Number.isFinite(n) && n > 0 ? n : 1;
   };
-
-  const [jaCarregouProdutos, setJaCarregouProdutos] = useState<boolean>(false);
 
   const abrirModalProdutos = async () => {
     setModalProdutoAberto(true);
@@ -85,6 +113,10 @@ export const PDVScreen: React.FC = () => {
     }
   };
 
+  const abrirModalOrcamentos = () => {
+    setModalOrcamentosAberto(true);
+  };
+
   const selecionarProdutoDoModal = (produto: Produto) => {
     const qtd = parseQuantidade(quantidade);
     adicionarAoCarrinho(produto, qtd);
@@ -93,6 +125,40 @@ export const PDVScreen: React.FC = () => {
     setQuantidade("1");
     setModalProdutoAberto(false);
     setTimeout(() => inputBuscaRef.current?.focus(), 100);
+  };
+
+  const carregarOrcamentoNoCarrinho = async (pedidoSimplificado: PedidoResponseDTO) => {
+    setLoading(true);
+    try {
+      const pedido = await vendasService.buscarPedidoPorId(pedidoSimplificado.id);
+
+      const itens: ItemCarrinho[] = (pedido.itens ?? []).map((i) => ({
+        produtoId: i.produtoId,
+        descricao: i.descricaoProduto,
+        unidade: i.unidade ?? "",
+        quantidade: i.quantidade,
+        precoUnitario: i.precoUnitario,
+        subtotal: i.subtotal,
+      }));
+
+      setCarrinho(itens);
+      setPedidoOrigemId(pedido.id);
+      setPedidoOrigemNumero(pedido.numero);
+      setUltimoItem(null);
+      setMensagemStatus(`Orçamento ${pedido.numero} carregado para venda`);
+      setModalOrcamentosAberto(false);
+      setTimeout(() => inputBuscaRef.current?.focus(), 100);
+    } catch (err) {
+      console.error(err);
+      setMensagemStatus("Erro ao carregar orçamento");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancelarOrcamento = async (pedido: PedidoResponseDTO) => {
+    await vendasService.cancelarPedido(pedido.id);
+    setMensagemStatus(`Orçamento ${pedido.numero} cancelado`);
   };
 
   const adicionarAoCarrinho = (produto: Produto, qtd: number) => {
@@ -123,6 +189,11 @@ export const PDVScreen: React.FC = () => {
 
   const processarBusca = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (modoOrcamento) {
+      setMensagemStatus("Bloqueado: orçamento carregado. Limpe com F8 para liberar.");
+      return;
+    }
+
     const termo = busca.trim();
     if (!termo) return;
 
@@ -132,9 +203,9 @@ export const PDVScreen: React.FC = () => {
     try {
       let produto: Produto | null = null;
 
-      try {
-        produto = await catalogoService.buscarPorCodigoBarras(termo);
-      } catch {
+      produto = await catalogoService.buscarPorCodigoBarras(termo);
+
+      if (!produto) {
         const resultados = await catalogoService.buscarPorDescricao(termo);
         if (resultados.length > 0) {
           produto = resultados[0];
@@ -160,6 +231,10 @@ export const PDVScreen: React.FC = () => {
   };
 
   const removerItem = (index: number) => {
+    if (modoOrcamento) {
+      setMensagemStatus("Bloqueado: orçamento carregado. Limpe com F8 para liberar.");
+      return;
+    }
     setCarrinho((prev) => prev.filter((_, i) => i !== index));
     inputBuscaRef.current?.focus();
   };
@@ -167,16 +242,27 @@ export const PDVScreen: React.FC = () => {
   const limparVenda = () => {
     if (
       carrinho.length === 0 ||
-      window.confirm("Deseja limpar todos os itens da venda?")
+      window.confirm(
+        modoOrcamento
+          ? "Limpar o orçamento carregado? Nada será salvo."
+          : "Deseja limpar todos os itens da venda?",
+      )
     ) {
       setCarrinho([]);
       setUltimoItem(null);
+      setPedidoOrigemId(null);
+      setPedidoOrigemNumero(null);
       setMensagemStatus("Caixa livre");
       inputBuscaRef.current?.focus();
     }
   };
 
   const salvarComoOrcamento = async () => {
+    if (modoOrcamento) {
+      setMensagemStatus("Bloqueado: finalize o orçamento carregado com F4.");
+      return;
+    }
+
     if (carrinho.length === 0) {
       alert("Adicione itens antes de gerar o orçamento.");
       return;
@@ -212,28 +298,43 @@ export const PDVScreen: React.FC = () => {
     forma: FormaPagamento,
     _valorRecebido: number,
     desconto: number,
+    senhaAutorizacao?: string,
   ) => {
     setLoading(true);
     try {
-      const pedido = await vendasService.criarPedido({
-        status: "FINALIZADO",
-        formaPagamento: forma,
-        valorDesconto: desconto,
-        itens: carrinho.map((i) => ({
-          produtoId: i.produtoId,
-          quantidade: i.quantidade,
-          precoUnitario: i.precoUnitario,
-        })),
-      });
+      let pedido: PedidoResponseDTO;
+
+      if (pedidoOrigemId !== null) {
+        pedido = await vendasService.finalizarOrcamento(pedidoOrigemId, {
+          valorDesconto: desconto,
+          senhaAutorizacao,
+        });
+      } else {
+        pedido = await vendasService.criarPedido({
+          status: "FINALIZADO",
+          formaPagamento: forma,
+          valorDesconto: desconto,
+          senhaAutorizacao,
+          itens: carrinho.map((i) => ({
+            produtoId: i.produtoId,
+            quantidade: i.quantidade,
+            precoUnitario: i.precoUnitario,
+          })),
+        });
+      }
 
       setModalAberto(false);
       alert(`Venda finalizada com sucesso! Pedido ${pedido.numero}`);
       setCarrinho([]);
       setUltimoItem(null);
+      setPedidoOrigemId(null);
+      setPedidoOrigemNumero(null);
       setMensagemStatus(`Venda ${pedido.numero} concluída`);
+
+      invalidarCacheProdutos();
     } catch (err) {
       console.error(err);
-      alert("Falha ao concluir venda no servidor.");
+      throw err;
     } finally {
       setLoading(false);
       inputBuscaRef.current?.focus();
@@ -244,7 +345,6 @@ export const PDVScreen: React.FC = () => {
     <div className="flex h-screen w-screen select-none flex-col bg-ink-800 font-sans text-ink-100">
       <header className="flex h-14 items-center justify-between border-b border-black/20 bg-brand-dark px-6 shadow-lg">
         <div className="flex items-center gap-3">
-          {/* Contraste máximo para a tag PDV usando o seu amarelo segurança puro */}
           <div className="rounded bg-accent p-1.5 text-xs font-black tracking-wider text-ink-950 shadow-sm">
             PDV
           </div>
@@ -253,7 +353,6 @@ export const PDVScreen: React.FC = () => {
           </h1>
         </div>
 
-        {/* Ajustamos o texto geral dos atalhos para branco puro (text-ink-50) para destacar no fundo escuro */}
         <div className="flex items-center gap-6 text-xs text-ink-50">
           <div>
             <span className="font-bold text-accent">[F2]</span> ORÇAMENTO
@@ -265,19 +364,43 @@ export const PDVScreen: React.FC = () => {
             <span className="font-bold text-accent">[F4]</span> FINALIZAR
           </div>
           <div>
+            <span className="font-bold text-accent">[F5]</span> CONSULTAR
+          </div>
+          <div>
             <span className="font-bold text-accent">[F8]</span> LIMPAR
           </div>
 
-          {/* Badge do ONLINE usando o verde sucesso com fundo preto semi-transparente para melhor leitura */}
           <div className="rounded-full border border-success/35 bg-black/30 px-3 py-1 font-semibold text-success backdrop-blur-sm">
             ONLINE
           </div>
         </div>
       </header>
 
+      {modoOrcamento && (
+        <div className="flex items-center justify-between border-b border-accent/35 bg-accent/10 px-6 py-2 text-sm">
+          <div className="flex items-center gap-2 font-semibold text-accent">
+            <FileSpreadsheet size={16} />
+            <span>
+              Orçamento <span className="font-mono">{pedidoOrigemNumero}</span> carregado — finalize com F4
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={limparVenda}
+            className="flex items-center gap-1 rounded border border-accent/35 px-2 py-0.5 text-xs font-semibold text-accent transition hover:bg-accent/20"
+          >
+            <RotateCcw size={12} /> Descartar carregamento
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-1 gap-4 overflow-hidden p-4">
         <div className="flex w-5/12 flex-col gap-4">
-          <div className="rounded-xl border border-ink-700/60 bg-ink-900/70 p-5 shadow-md">
+          <div
+            className={`rounded-xl border border-ink-700/60 bg-ink-900/70 p-5 shadow-md ${
+              modoOrcamento ? "pointer-events-none opacity-40" : ""
+            }`}
+          >
             <form onSubmit={processarBusca} className="space-y-4">
               <div className="grid grid-cols-4 gap-3">
                 <div className="col-span-1">
@@ -397,12 +520,20 @@ export const PDVScreen: React.FC = () => {
               <ShoppingCart size={18} />
               <span>Itens da Venda ({carrinho.length})</span>
             </div>
-            <button
-              onClick={limparVenda}
-              className="flex items-center gap-1 text-xs font-semibold text-red-400 transition hover:text-red-300"
-            >
-              <RotateCcw size={14} /> Cancelar [F8]
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={abrirModalOrcamentos}
+                className="flex items-center gap-1 text-xs font-semibold text-ink-300 transition hover:text-accent"
+              >
+                <FileSpreadsheet size={14} /> Consultar [F5]
+              </button>
+              <button
+                onClick={limparVenda}
+                className="flex items-center gap-1 text-xs font-semibold text-red-400 transition hover:text-red-300"
+              >
+                <RotateCcw size={14} /> Cancelar [F8]
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto">
@@ -447,7 +578,8 @@ export const PDVScreen: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => removerItem(idx)}
-                          className="text-ink-500 transition hover:text-red-400"
+                          disabled={modoOrcamento}
+                          className="text-ink-500 transition hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-30"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -473,7 +605,7 @@ export const PDVScreen: React.FC = () => {
               <button
                 type="button"
                 onClick={salvarComoOrcamento}
-                disabled={carrinho.length === 0 || loading}
+                disabled={carrinho.length === 0 || loading || modoOrcamento}
                 className="flex items-center justify-center gap-2 rounded-xl border border-ink-700 bg-ink-800 py-3.5 text-sm font-bold text-ink-100 transition hover:bg-ink-700 disabled:opacity-50"
               >
                 <FileSpreadsheet size={18} />
@@ -510,6 +642,16 @@ export const PDVScreen: React.FC = () => {
         onSelecionar={selecionarProdutoDoModal}
         onFechar={() => {
           setModalProdutoAberto(false);
+          setTimeout(() => inputBuscaRef.current?.focus(), 100);
+        }}
+      />
+
+      <ModalOrcamentosAbertos
+        aberto={modalOrcamentosAberto}
+        onSelecionar={carregarOrcamentoNoCarrinho}
+        onCancelar={cancelarOrcamento}
+        onFechar={() => {
+          setModalOrcamentosAberto(false);
           setTimeout(() => inputBuscaRef.current?.focus(), 100);
         }}
       />

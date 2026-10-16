@@ -38,12 +38,19 @@ export interface PedidoRequestDTO {
   status: StatusPedido;
   formaPagamento: FormaPagamento;
   valorDesconto: number;
+  senhaAutorizacao?: string;
   itens: ItemPedidoRequest[];
+}
+
+export interface FinalizacaoRequestDTO {
+  valorDesconto: number;
+  senhaAutorizacao?: string;
 }
 
 export interface ItemPedidoResponse {
   produtoId: number;
   descricaoProduto: string;
+  unidade: string;
   quantidade: number;
   precoUnitario: number;
   subtotal: number;
@@ -52,12 +59,17 @@ export interface ItemPedidoResponse {
 export interface PedidoResponseDTO {
   id: number;
   numero: string;
+  numeroOrcamento?: string | null;
+  numeroVenda?: string | null;
+  numeroOrcamentoOrigem?: string | null;
   clienteId?: number;
   status: StatusPedido;
   formaPagamento: FormaPagamento;
   valorTotal: number;
   valorDesconto: number;
+  descontoAutorizadoPor?: string | null;
+  descontoAutorizadoEm?: string | null;
   createdAt: string;
-  finalizadoAt?: string;
+  finalizadoAt?: string | null;
   itens: ItemPedidoResponse[];
 }
