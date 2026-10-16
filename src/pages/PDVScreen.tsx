@@ -9,6 +9,8 @@ import {
   RotateCcw,
   Package,
   List,
+  User,
+  X,
 } from "lucide-react";
 
 import type {
@@ -17,12 +19,16 @@ import type {
   FormaPagamento,
   PedidoResponseDTO,
 } from "../types/pdv";
+import type { Pessoa } from "../types/cliente";
 
 import { catalogoService } from "../services/catalogoService";
 import { vendasService } from "../services/vendasService";
 import { ModalFinalizarVenda } from "../components/ModalFinalizarVenda";
 import { ModalBuscarProduto } from "../components/produto/ModalBuscarProduto";
 import { ModalOrcamentosAbertos } from "../components/pedido/ModalOrcamentosAbertos";
+import { ModalBuscarCliente } from "../components/cliente/ModalBuscarCliente";
+
+import logoDx14 from "../assets/logo-dx14.png";
 
 export const PDVScreen: React.FC = () => {
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
@@ -33,11 +39,13 @@ export const PDVScreen: React.FC = () => {
   const [modalAberto, setModalAberto] = useState<boolean>(false);
   const [modalProdutoAberto, setModalProdutoAberto] = useState<boolean>(false);
   const [modalOrcamentosAberto, setModalOrcamentosAberto] = useState<boolean>(false);
+  const [modalClienteAberto, setModalClienteAberto] = useState<boolean>(false);
   const [produtosLista, setProdutosLista] = useState<Produto[]>([]);
   const [carregandoProdutos, setCarregandoProdutos] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [pedidoOrigemId, setPedidoOrigemId] = useState<number | null>(null);
   const [pedidoOrigemNumero, setPedidoOrigemNumero] = useState<string | null>(null);
+  const [clienteSelecionado, setClienteSelecionado] = useState<Pessoa | null>(null);
   const [jaCarregouProdutos, setJaCarregouProdutos] = useState<boolean>(false);
 
   const inputBuscaRef = useRef<HTMLInputElement>(null);
@@ -55,7 +63,13 @@ export const PDVScreen: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (modalAberto || modalProdutoAberto || modalOrcamentosAberto) return;
+      if (
+        modalAberto ||
+        modalProdutoAberto ||
+        modalOrcamentosAberto ||
+        modalClienteAberto
+      )
+        return;
 
       if (e.key === "F4") {
         e.preventDefault();
@@ -69,6 +83,13 @@ export const PDVScreen: React.FC = () => {
           return;
         }
         salvarComoOrcamento();
+      } else if (e.key === "F6") {
+        e.preventDefault();
+        if (modoOrcamento) {
+          setMensagemStatus("Bloqueado: orçamento carregado");
+          return;
+        }
+        setModalClienteAberto(true);
       } else if (e.key === "F8") {
         e.preventDefault();
         limparVenda();
@@ -87,7 +108,14 @@ export const PDVScreen: React.FC = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [carrinho, modalAberto, modalProdutoAberto, modalOrcamentosAberto, modoOrcamento]);
+  }, [
+    carrinho,
+    modalAberto,
+    modalProdutoAberto,
+    modalOrcamentosAberto,
+    modalClienteAberto,
+    modoOrcamento,
+  ]);
 
   const totalGeral = carrinho.reduce((acc, item) => acc + item.subtotal, 0);
 
@@ -115,6 +143,19 @@ export const PDVScreen: React.FC = () => {
 
   const abrirModalOrcamentos = () => {
     setModalOrcamentosAberto(true);
+  };
+
+  const selecionarCliente = (pessoa: Pessoa) => {
+    setClienteSelecionado(pessoa);
+    setModalClienteAberto(false);
+    setMensagemStatus(`Cliente: ${pessoa.nome}`);
+    setTimeout(() => inputBuscaRef.current?.focus(), 100);
+  };
+
+  const limparCliente = () => {
+    setClienteSelecionado(null);
+    setMensagemStatus("Cliente: CONSUMIDOR FINAL");
+    setTimeout(() => inputBuscaRef.current?.focus(), 100);
   };
 
   const selecionarProdutoDoModal = (produto: Produto) => {
@@ -252,6 +293,7 @@ export const PDVScreen: React.FC = () => {
       setUltimoItem(null);
       setPedidoOrigemId(null);
       setPedidoOrigemNumero(null);
+      setClienteSelecionado(null);
       setMensagemStatus("Caixa livre");
       inputBuscaRef.current?.focus();
     }
@@ -271,6 +313,7 @@ export const PDVScreen: React.FC = () => {
     setLoading(true);
     try {
       const pedido = await vendasService.criarPedido({
+        clienteId: clienteSelecionado?.id,
         status: "ORCAMENTO",
         formaPagamento: "DINHEIRO",
         valorDesconto: 0,
@@ -284,6 +327,7 @@ export const PDVScreen: React.FC = () => {
       alert(`Orçamento gerado com sucesso! Número: ${pedido.numero}`);
       setCarrinho([]);
       setUltimoItem(null);
+      setClienteSelecionado(null);
       setMensagemStatus(`Orçamento ${pedido.numero} salvo`);
     } catch (err) {
       console.error(err);
@@ -311,6 +355,7 @@ export const PDVScreen: React.FC = () => {
         });
       } else {
         pedido = await vendasService.criarPedido({
+          clienteId: clienteSelecionado?.id,
           status: "FINALIZADO",
           formaPagamento: forma,
           valorDesconto: desconto,
@@ -329,6 +374,7 @@ export const PDVScreen: React.FC = () => {
       setUltimoItem(null);
       setPedidoOrigemId(null);
       setPedidoOrigemNumero(null);
+      setClienteSelecionado(null);
       setMensagemStatus(`Venda ${pedido.numero} concluída`);
 
       invalidarCacheProdutos();
@@ -343,17 +389,26 @@ export const PDVScreen: React.FC = () => {
 
   return (
     <div className="flex h-screen w-screen select-none flex-col bg-ink-800 font-sans text-ink-100">
-      <header className="flex h-14 items-center justify-between border-b border-black/20 bg-brand-dark px-6 shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="rounded bg-accent p-1.5 text-xs font-black tracking-wider text-ink-950 shadow-sm">
-            PDV
+      <header className="flex h-16 items-center justify-between border-b border-black/40 bg-gradient-to-r from-brand-dark via-brand-dark to-brand-metal px-6 shadow-lg">
+        <div className="flex items-center gap-4">
+          <img
+            src={logoDx14}
+            alt="DX14 Soluções Inteligentes"
+            className="h-10 w-auto"
+            draggable={false}
+          />
+          <div className="h-8 w-px bg-white/10" />
+          <div className="flex items-center gap-3">
+            <div className="rounded bg-accent px-2 py-1 text-xs font-black tracking-wider text-ink-950 shadow-sm">
+              PDV
+            </div>
+            <h1 className="text-lg font-bold tracking-tight text-ink-50 drop-shadow-sm">
+              FERRAGISTA 2 IRMÃOS - BALCÃO & CAIXA
+            </h1>
           </div>
-          <h1 className="text-lg font-bold tracking-tight text-ink-50 drop-shadow-sm">
-            FERRAGISTA 2 IRMÃOS - BALCÃO & CAIXA
-          </h1>
         </div>
 
-        <div className="flex items-center gap-6 text-xs text-ink-50">
+        <div className="flex items-center gap-5 text-xs text-ink-50">
           <div>
             <span className="font-bold text-accent">[F2]</span> ORÇAMENTO
           </div>
@@ -367,21 +422,66 @@ export const PDVScreen: React.FC = () => {
             <span className="font-bold text-accent">[F5]</span> CONSULTAR
           </div>
           <div>
+            <span className="font-bold text-accent">[F6]</span> CLIENTE
+          </div>
+          <div>
             <span className="font-bold text-accent">[F8]</span> LIMPAR
           </div>
 
-          <div className="rounded-full border border-success/35 bg-black/30 px-3 py-1 font-semibold text-success backdrop-blur-sm">
+          <div className="ml-2 rounded-full border border-success/40 bg-black/30 px-3 py-1 font-semibold text-success backdrop-blur-sm">
             ONLINE
           </div>
         </div>
       </header>
+
+      <div className="flex items-center justify-between border-b border-ink-700/60 bg-ink-900/60 px-6 py-2 text-sm">
+        <div className="flex items-center gap-2">
+          <User
+            size={16}
+            className={clienteSelecionado ? "text-accent" : "text-ink-400"}
+          />
+          <span className="text-ink-300">Cliente:</span>
+          <span
+            className={`font-semibold ${
+              clienteSelecionado ? "text-accent" : "text-ink-200"
+            }`}
+          >
+            {clienteSelecionado ? clienteSelecionado.nome : "CONSUMIDOR FINAL"}
+          </span>
+          {clienteSelecionado && (
+            <span className="text-xs text-ink-400">
+              ({clienteSelecionado.documento})
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setModalClienteAberto(true)}
+            disabled={modoOrcamento}
+            className="flex items-center gap-1 text-xs font-semibold text-ink-300 transition hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Search size={14} /> Buscar Cliente [F6]
+          </button>
+          {clienteSelecionado && !modoOrcamento && (
+            <button
+              type="button"
+              onClick={limparCliente}
+              className="flex items-center gap-1 text-xs font-semibold text-red-400 transition hover:text-red-300"
+            >
+              <X size={14} /> Limpar
+            </button>
+          )}
+        </div>
+      </div>
 
       {modoOrcamento && (
         <div className="flex items-center justify-between border-b border-accent/35 bg-accent/10 px-6 py-2 text-sm">
           <div className="flex items-center gap-2 font-semibold text-accent">
             <FileSpreadsheet size={16} />
             <span>
-              Orçamento <span className="font-mono">{pedidoOrigemNumero}</span> carregado — finalize com F4
+              Orçamento <span className="font-mono">{pedidoOrigemNumero}</span>{" "}
+              carregado — finalize com F4
             </span>
           </div>
           <button
@@ -652,6 +752,15 @@ export const PDVScreen: React.FC = () => {
         onCancelar={cancelarOrcamento}
         onFechar={() => {
           setModalOrcamentosAberto(false);
+          setTimeout(() => inputBuscaRef.current?.focus(), 100);
+        }}
+      />
+
+      <ModalBuscarCliente
+        aberto={modalClienteAberto}
+        onSelecionar={selecionarCliente}
+        onFechar={() => {
+          setModalClienteAberto(false);
           setTimeout(() => inputBuscaRef.current?.focus(), 100);
         }}
       />
