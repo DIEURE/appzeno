@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import {
   Barcode,
   Search,
@@ -10,6 +11,7 @@ import {
   Package,
   List,
   User,
+  LogOut,
   X,
 } from "lucide-react";
 
@@ -29,6 +31,8 @@ import { ModalOrcamentosAbertos } from "../components/pedido/ModalOrcamentosAber
 import { ModalBuscarCliente } from "../components/cliente/ModalBuscarCliente";
 
 import logoDx14 from "../assets/logo-dx14.png";
+
+
 
 export const PDVScreen: React.FC = () => {
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
@@ -427,6 +431,14 @@ export const PDVScreen: React.FC = () => {
           <div>
             <span className="font-bold text-accent">[F8]</span> LIMPAR
           </div>
+          <Link
+  to="/"
+  className="ml-2 flex items-center gap-1 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-semibold text-ink-300 transition hover:border-accent/40 hover:text-accent"
+  title="Trocar ambiente"
+>
+  <LogOut size={12} /> Sair
+</Link>
+
 
           <div className="ml-2 rounded-full border border-success/40 bg-black/30 px-3 py-1 font-semibold text-success backdrop-blur-sm">
             ONLINE
